@@ -14,12 +14,21 @@ Execute (Remove before submission):
         -f ../../Memory_Samples/S1/sample001.bin initialtriage
 """
 
+import sys
+import json
 import time
+import volatility.obj as obj
 import volatility.utils as utils
 import volatility.win32 as win32
+import volatility.protos as protos
 import volatility.timefmt as timefmt
+import volatility.win32.tasks as tasks
+# Plugins Imports
 import volatility.plugins.common as common
 import volatility.plugins.imageinfo as imageinfo
+import volatility.plugins.netscan as netscan
+import volatility.plugins.connscan as connscan
+import volatility.plugins.sockscan as sockscan
 import volatility.plugins.registry.registryapi as registry_api
 
 
@@ -44,51 +53,107 @@ class InitialTriage(common.AbstractWindowsCommand):
 
     def calculate(self):
         """ Perform the Work """
+        output = {}
         addr_space = utils.load_as(self._config)
+        profile = 'DefXP'
+
         # Image Info
-        print ""
-        # Process List
-        print "Memory Capture Summary"
-        print "#====================#"
-        # List Profiles and Select Best One
-        # Retrieve OS information from registry
-        # Code Goes Here
         iinfo = imageinfo.ImageInfo(self._config)
-        image_time = iinfo.get_image_time(addr_space)
-        print "Memory Captured: %s" % \
-              timefmt.display_datetime(image_time['ImageDatetime'].as_datetime(),
-                                       image_time['ImageTz'])
-        print ""
+        image_time_raw = iinfo.get_image_time(addr_space)
+        image_time = timefmt.display_datetime(image_time_raw['ImageDatetime'].as_datetime(),
+                                 image_time_raw['ImageTz'])
+        output['image_time'] = image_time
+
         # Process List
-        print "Process List"
-        print "#==========#"
         proclist_pslist = win32.tasks.pslist(addr_space)
         for item in proclist_pslist:
-            print(item)
-        # Replace with pstree
-        # Add potential malicious entries with psxview output
-        # Diff with psxview and pstree?
-        print ""
+            print int(item.UniqueProcessId), item.ImageFileName, item
+
         # Services
-        print "Recently Created Services"
-        print "#=======================#"
-        recent_services = self.most_recent_services()
-        for item in recent_services:
-            print time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(item[0])), \
-                  item[1]
+        recent_services = []
+        for item in self.most_recent_services():
+            svc = [time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(item[0])), str(item[1])]
+            recent_services.append(svc)
+        output['recent_services'] = recent_services
+
         # Network Connections
-        # Code Goes Here
-        # Differences in XP Listed
-        # if Vista+ then netscan else connections/connscan and sockets/sockscan
-        return {}
+        if 'XP' in profile or '2003' in profile:
+            # Process Sockets (XP / 2003)
+            sockscan_c = sockscan.SockScan(self._config)
+            sockscan_data = sockscan_c.calculate()
+            sockets = []
+            for sock in sockscan_data:
+                sockets.append([int(sock.obj_offset),
+                                int(sock.Pid),
+                                int(sock.LocalPort),
+                                int(sock.Protocol),
+                                protos.protos.get(sock.Protocol.v(), "-"),
+                                str(sock.LocalIpAddress),
+                                sock.CreateTime
+                                ])
+            output['sockets'] = sockets
+            # Process Connections (XP / 2003)
+            connscan_c = connscan.ConnScan(self._config)
+            connscan_data = connscan_c.calculate()
+            connections = []
+            for conn in connscan_data:
+                connections.append([int(conn.obj_offset),
+                                    str(conn.LocalIpAddress),
+                                    int(conn.LocalPort),
+                                    str(conn.RemoteIpAddress),
+                                    int(conn.RemotePort),
+                                    int(conn.Pid)
+                                    ])
+            output["connections"] = connections
+        else:
+            # Process Sockets/Connections (Vista+)
+            netscan_c = netscan.Netscan(self._config)
+            netscan_data = netscan_c.calculate()
+
+        # Return output in JSON
+        print output
+        return str(output)
 
     def render_text(self, outfd, data):
         """ Output Results in Text """
         # Once Above is Completed:
         # Migrate output to json => Use json to render text
-        print("output")
+        print(data)
+        output = json.loads(data)
+        print ""
+        # Process Image Summary
+        print "Memory Capture Summary"
+        print "#====================#"
+        # Print Image Summary
+        print "Memory Captured: %s" % output['image_time']
+        print ""
+
+        # Print Processes
+        print "Process List"
+        print "#==========#"
+
+        print ""
+
+        # Print Services
+        print "Recently Created Services"
+        print "#=======================#"
+        for svc in output['recent_services']:
+            print svc
+        print ""
 
     def render_json(self, outfd, data):
-        """ Output Results in Text """
-        # Print json from above
-        print("output")
+        """ Output Results in JSON """
+        print(data)
+
+        # Replace with pstree
+        # Add potential malicious entries with psxvixew output
+        # Diff with psxview and pstree?
+        # profilelist = [p.__name__ for p in
+        #                registry.get_plugin_classes(obj.Profile).values()]
+        # bestguess = None
+        # suglist = [s for s, _ in kdbgscan.KDBGScan.calculate(kdbgscan.KDBGScan)]
+        # if suglist:
+        #     bestguess = suglist[0]
+        # suggestion = ", ".join(set(suglist))
+        # print bestguess
+        # profile.metadata.get('os', 'unknown') == 'windows' and profile.metadata.get('major', 0) == 5
