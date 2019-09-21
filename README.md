@@ -38,3 +38,6 @@ used in the CFRS 710 Memory Forensics course at GMU.
 Future work includes handling additional plugins, standardizing output, and 
 additional enrichment of the standard Volatility plugins to provide greater
 context to an investigator when looking at a memory sample for the first time.
+
+### Note
+Work is largely on hold until Volatility 3 is released at OSDFCon 2019

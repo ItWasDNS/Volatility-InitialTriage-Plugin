@@ -110,57 +110,57 @@ class InitialTriage(common.AbstractWindowsCommand):
         print "Memory Captured: %s" % data['image_time']
         print ""
 
-        print " Processes "
-        print "#=========#"
+        print "Processes"
+        print "#=======#"
         pstree.PSTree(self._config).render_text(sys.stdout, data["pstree"])
         print ""
 
-        print " Recently Created Services "
-        print "#=========================#"
+        print "Recently Created Services"
+        print "#=======================#"
         print("{:<21}{:<20}".format("Time Created", "Service"))
-        print "-------------------- --------"
+        print "-"*20, "-"*19
         for svc in data['recent_services']:
             print("{:<21}{:<20}".format(svc[0], svc[1]))
         print ""
 
-        print " Connections "
-        print "#===========#"
+        print "Connections"
+        print "#=========#"
         if "connections" in data.keys():
-            print("{:<12}{:<17}{:<12}{:<17}{:<13}{:<7}".format("Offset",
-                                                             "Local IP",
-                                                             "Local Port",
-                                                             "Remote IP",
-                                                             "Remote Port",
-                                                             "PID"))
-            print "----------- ---------------- ----------- ---------------- \
------------- -------"
+            conn_format = "{:<12}{:<17}{:<12}{:<17}{:<13}{:<7}"
+            print(conn_format.format("Offset",
+                                     "Local IP",
+                                     "Local Port",
+                                     "Remote IP",
+                                     "Remote Port",
+                                     "PID"))
+            print "-"*11, "-"*16, "-"*11, "-"*16, "-"*12, "-"*6
             for conn in data["connections"]:
-                print "{:<12}{:<17}{:<12}{:<17}{:<13}{:<7}".format(conn[0],
-                                                                  conn[1],
-                                                                  conn[2],
-                                                                  conn[3],
-                                                                  conn[4],
-                                                                  conn[5])
+                print conn_format.format(conn[0],
+                                         conn[1],
+                                         conn[2],
+                                         conn[3],
+                                         conn[4],
+                                         conn[5])
         print ""
 
-        print " Sockets "
-        print "#=======#"
+        print "Sockets"
+        print "#=====#"
         if "sockets" in data.keys():
-            print("{:<12}{:<7}{:<17}{:<6}{:<11}{:<28}".format("Offset",
-                                                              "PID",
-                                                              "IP Address",
-                                                              "Port",
-                                                              "Protocol",
-                                                              "Creation Time"))
-            print "----------- ------ ---------------- ------ --------- \
-----------------------------"
+            sockets_format = "{:<12}{:<7}{:<17}{:<6}{:<11}{:<28}"
+            print(sockets_format.format("Offset",
+                                        "PID",
+                                        "IP Address",
+                                        "Port",
+                                        "Protocol",
+                                        "Creation Time"))
+            print "-"*11, "-"*6, "-"*16, "-"*5, "-"*10, "-"*27
             for sock in data["sockets"]:
-                print "{:<12}{:<7}{:<17}{:<6}{:<11}{:<28}".format(sock[0],
-                                                                  sock[1],
-                                                                  sock[2],
-                                                                  sock[3],
-                                                                  sock[4],
-                                                                  sock[5])
+                print sockets_format.format(sock[0],
+                                            sock[1],
+                                            sock[2],
+                                            sock[3],
+                                            sock[4],
+                                            sock[5])
         print ""
 
     def render_json(self, outfd, data):
